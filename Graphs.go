@@ -31,8 +31,6 @@ func (m *MetricsAllSSingleRun) MallocsAndFreesGraph() components.Charter {
 	return line
 }
 
-/*================== Generalized function to generate graphs ==================*/
-
 func (m *MetricsAllSSingleRun) GenerateMallocs() []opts.LineData {
 	items := make([]opts.LineData, 0)
 	for i, _ := range m.Metrics {
@@ -58,6 +56,8 @@ func (m *MetricsAllSSingleRun) GenerateLiveobjects() []opts.LineData {
 	}
 	return items
 }
+
+/*================== Generalized function to generate graphs ==================*/
 
 func (m *MetricsAllSSingleRun) Graph(description string, field string, Type ...string) components.Charter {
 	line := charts.NewLine()

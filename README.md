@@ -5,6 +5,8 @@ The objective is to run your program and the go metrics gets
 saved to the JSON file and after the run the simple program
 generates a static HTML. 
 
+#### based on the repo: I forgot where I plagarized the influx DB metric implementation from (Once I recollect it from my head I will cite it here) 
+
 
 ## How to use it 
 1. It's as easy as

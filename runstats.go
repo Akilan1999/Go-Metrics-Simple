@@ -18,45 +18,24 @@ import (
 )
 
 const (
-	defaultHost               = "localhost:8086"
-	defaultMeasurement        = "go.runtime"
-	defaultDatabase           = "stats"
+	//defaultHost               = "localhost:8086"
+	defaultMeasurement = "go.runtime"
+	//defaultDatabase           = "stats"
 	defaultCollectionInterval = 1 * time.Second
 	defaultBatchInterval      = 60 * time.Second
 )
 
-// A configuration with default values.
+// DefaultConfig A configuration with default values.
 var DefaultConfig = &Config{}
 
 type Config struct {
-	// InfluxDb host:port pair.
-	// Default is "localhost:8086".
-	Host string
-
-	// Database to write points to.
-	// Default is "stats" and is auto created
-	Database string
-
-	// Username with privileges on provided database.
-	Username string
-
-	// Password for provided user.
-	Password string
-
 	// Measurement to write points to.
 	// Default is "go.runtime.<hostname>".
 	Measurement string
 
-	// Measurement to write points to.
-	RetentionPolicy string
-
 	// Interval at which to write batched points to InfluxDB.
 	// Default is 60 seconds
 	BatchInterval time.Duration
-
-	// Precision in time to write your points in.
-	// Default is nanoseconds
-	Precision string
 
 	// Interval at which to collect points.
 	// Default is 10 seconds
@@ -79,14 +58,6 @@ type Config struct {
 func (config *Config) init() (*Config, error) {
 	if config == nil {
 		config = DefaultConfig
-	}
-
-	if config.Database == "" {
-		config.Database = defaultDatabase
-	}
-
-	if config.Host == "" {
-		config.Host = defaultHost
 	}
 
 	if config.Measurement == "" {
@@ -260,25 +231,24 @@ type Logger interface {
 type DefaultLogger struct{}
 
 // Println Overwritten function to save result to the result file
-func (*DefaultLogger) Println(v ...interface{}) {
-	fmt.Println(v)
-}
+func (*DefaultLogger) Println(v ...interface{}) {}
 func (*DefaultLogger) Fatalln(v ...interface{}) { log.Fatalln(v) }
 
-func queryDB(clnt client.Client, cmd string) (res []client.Result, err error) {
-	q := client.Query{
-		Command: cmd,
-	}
-	if response, err := clnt.Query(q); err == nil {
-		if response.Error() != nil {
-			return res, response.Error()
-		}
-		res = response.Results
-	} else {
-		return res, err
-	}
-	return res, nil
-}
+//
+//func queryDB(clnt client.Client, cmd string) (res []client.Result, err error) {
+//	q := client.Query{
+//		Command: cmd,
+//	}
+//	if response, err := clnt.Query(q); err == nil {
+//		if response.Error() != nil {
+//			return res, response.Error()
+//		}
+//		res = response.Results
+//	} else {
+//		return res, err
+//	}
+//	return res, nil
+//}
 
 // Basic struct with file information
 type MetricsAllSSingleRun struct {

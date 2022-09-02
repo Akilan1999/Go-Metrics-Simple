@@ -13,6 +13,7 @@ func f(from string) {
 }
 
 func main() {
+	// Add this to the starting point of your go program
 	err := metrics.RunCollector(metrics.DefaultConfig)
 
 	if err != nil {
@@ -30,5 +31,6 @@ func main() {
 	time.Sleep(time.Second)
 	fmt.Println("done")
 
+	// Add this to the end point of your go program
 	metrics.ComputeDefaultFile()
 }

@@ -11,7 +11,7 @@ import (
 /*================== Mallocs is the cumulative count of heap objects allocated and Frees is the cumulative count of heap objects freed ==================*/
 
 // MallocsAndFreesGraph mallocs graph
-func (m *MetricsAllSSingleRun) MallocsAndFreesGraph() components.Charter {
+func (m *MetricsAllSingleRun) MallocsAndFreesGraph() components.Charter {
 	line := charts.NewLine()
 	// set some global options like Title/Legend/ToolTip or anything else
 	line.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
@@ -31,7 +31,7 @@ func (m *MetricsAllSSingleRun) MallocsAndFreesGraph() components.Charter {
 	return line
 }
 
-func (m *MetricsAllSSingleRun) GenerateMallocs() []opts.LineData {
+func (m *MetricsAllSingleRun) GenerateMallocs() []opts.LineData {
 	items := make([]opts.LineData, 0)
 	for i, _ := range m.Metrics {
 		items = append(items, opts.LineData{Value: m.Metrics[i].Mallocs})
@@ -40,7 +40,7 @@ func (m *MetricsAllSSingleRun) GenerateMallocs() []opts.LineData {
 }
 
 // GenerateFrees generate graph for frees
-func (m *MetricsAllSSingleRun) GenerateFrees() []opts.LineData {
+func (m *MetricsAllSingleRun) GenerateFrees() []opts.LineData {
 	items := make([]opts.LineData, 0)
 	for i, _ := range m.Metrics {
 		items = append(items, opts.LineData{Value: m.Metrics[i].Frees})
@@ -49,7 +49,7 @@ func (m *MetricsAllSSingleRun) GenerateFrees() []opts.LineData {
 }
 
 // GenerateLiveobjects for Live objects (Mallocs - free)
-func (m *MetricsAllSSingleRun) GenerateLiveobjects() []opts.LineData {
+func (m *MetricsAllSingleRun) GenerateLiveobjects() []opts.LineData {
 	items := make([]opts.LineData, 0)
 	for i, _ := range m.Metrics {
 		items = append(items, opts.LineData{Value: m.Metrics[i].Mallocs - m.Metrics[i].Frees})
@@ -59,7 +59,7 @@ func (m *MetricsAllSSingleRun) GenerateLiveobjects() []opts.LineData {
 
 /*================== Generalized function to generate graphs ==================*/
 
-func (m *MetricsAllSSingleRun) Graph(description string, field string, Type ...string) components.Charter {
+func (m *MetricsAllSingleRun) Graph(description string, field string, Type ...string) components.Charter {
 	line := charts.NewLine()
 	// set some global options like Title/Legend/ToolTip or anything else
 	line.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
@@ -82,7 +82,7 @@ func (m *MetricsAllSSingleRun) Graph(description string, field string, Type ...s
 	return line
 }
 
-func (m *MetricsAllSSingleRun) GenerateData(field string, TypePlot string) []opts.LineData {
+func (m *MetricsAllSingleRun) GenerateData(field string, TypePlot string) []opts.LineData {
 	items := make([]opts.LineData, 0)
 	for i, _ := range m.Metrics {
 		var metric collector.Fields
@@ -96,4 +96,31 @@ func (m *MetricsAllSSingleRun) GenerateData(field string, TypePlot string) []opt
 		}
 	}
 	return items
+}
+
+/*================== Generalized implementation for plotting metrics ==================*/
+
+func (m *MetricsComparison) GraphArray(description string, field string, Type ...string) components.Charter {
+	line := charts.NewLine()
+	// set some global options like Title/Legend/ToolTip or anything else
+	line.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
+		Title:    field,
+		Subtitle: description,
+	}))
+
+	TypePlot := "int"
+	if len(Type) != 0 {
+		TypePlot = Type[0]
+	}
+
+	for i, _ := range m.Metrics {
+		line.SetXAxis(m.Metrics[i].Duration).
+			// Put data into instance
+			AddSeries(description, m.Metrics[i].GenerateData(field, TypePlot)).SetSeriesOptions()
+		// Where the magic happens
+		//f, _ := os.Create("MemoryAllocation.html")
+		//line.Render(f)
+	}
+
+	return line
 }

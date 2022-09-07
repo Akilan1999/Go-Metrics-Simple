@@ -3,7 +3,6 @@ package runstats
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"io"
 	"log"
@@ -157,7 +156,7 @@ func (r *runStats) onNewPoint(fields collector.Fields) {
 	}
 
 	// write to file here
-	f, err := os.OpenFile("results.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile("results1.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -250,20 +249,29 @@ func (*DefaultLogger) Fatalln(v ...interface{}) { log.Fatalln(v) }
 //	return res, nil
 //}
 
-// Basic struct with file information
-type MetricsAllSSingleRun struct {
+// MetricsAllSingleRun Basic struct with file information
+type MetricsAllSingleRun struct {
 	Metrics  []collector.Fields
 	Duration []float64
 }
 
-func ComputeDefaultFile() {
-	file, err := os.Open("results.json")
+type MetricsComparison struct {
+	Metrics []MetricsAllSingleRun
+}
+
+type NormalizedGraphs struct {
+	Metrics  [][]collector.Fields
+	Duration []int
+}
+
+func ReadFile(File string) (*MetricsAllSingleRun, error) {
+	file, err := os.Open(File)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer file.Close()
 
-	var MetricsArray MetricsAllSSingleRun
+	var MetricsArray MetricsAllSingleRun
 
 	scanner := bufio.NewScanner(file)
 	i := 0
@@ -282,21 +290,142 @@ func ComputeDefaultFile() {
 			Duration := t.Sub(prevTimeStamp)
 			duration += Duration.Seconds()
 		}
-		fmt.Println(duration)
 		MetricsArray.Duration = append(MetricsArray.Duration, duration)
 		MetricsArray.Metrics = append(MetricsArray.Metrics, metric)
 		i += 1
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	MetricsArray.GenerateGraphs()
+	return &MetricsArray, nil
+}
+
+// NormalizeGraphs Ensure data is available for being potable
+// Step 1: Convert Duration to int
+// Step 2: Ensure all points can rely on a single duration
+func (m *MetricsComparison) NormalizeGraphs() (*NormalizedGraphs, error) {
+	var ng NormalizedGraphs
+	if len(m.Metrics) > 1 {
+		for i, _ := range m.Metrics {
+			ng.Metrics = append(ng.Metrics, m.Metrics[i].Metrics)
+		}
+	} else if len(m.Metrics) == 1 {
+		ng.Metrics = append(ng.Metrics, m.Metrics[0].Metrics)
+		ng.Duration = FloatArrayToIntArray(m.Metrics[0].Duration)
+	}
+	return &ng, nil
+}
+
+func FloatArrayToIntArray(fa []float64) []int {
+	var ia []int
+	for i, _ := range fa {
+		ia = append(ia, int(fa[i]))
+	}
+	return ia
+}
+
+func Compute1orMoreFiles(files ...string) {
+	var metricsComparsion MetricsComparison
+	// open all files provided in the parameters
+	for i, _ := range files {
+		file, err := ReadFile(files[i])
+		if err != nil {
+			log.Printf("File name: %v failed to read due to error: %v", files[i], err)
+			continue
+		}
+		metricsComparsion.Metrics = append(metricsComparsion.Metrics, *file)
+	}
+	// Normalize Graphs to ensure it's Plotable
+	//metricsComparsion.NormalizeGraphs()
+
+	metricsComparsion.GenerateGraphsLists()
+}
+
+// ComputeDefaultFile Plot based on the default file which is results1.json
+func ComputeDefaultFile() {
+	Compute1orMoreFiles("results.json", "results1.json")
+	//file, err := os.Open("results1.json")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//defer file.Close()
+	//
+	//var MetricsArray MetricsAllSingleRun
+	//
+	//scanner := bufio.NewScanner(file)
+	//i := 0
+	//
+	//var duration float64
+	//// optionally, resize scanner's capacity for lines over 64K
+	//for scanner.Scan() {
+	//	var metric collector.Fields
+	//	json.Unmarshal(scanner.Bytes(), &metric)
+	//	// Calculate time difference
+	//	if i == 0 {
+	//		duration = 0
+	//	} else {
+	//		t, _ := dateparse.ParseLocal(strconv.FormatInt(metric.Timestamp, 10))
+	//		prevTimeStamp, _ := dateparse.ParseLocal(strconv.FormatInt(MetricsArray.Metrics[i-1].Timestamp, 10))
+	//		Duration := t.Sub(prevTimeStamp)
+	//		duration += Duration.Seconds()
+	//	}
+	//	MetricsArray.Duration = append(MetricsArray.Duration, duration)
+	//	MetricsArray.Metrics = append(MetricsArray.Metrics, metric)
+	//	i += 1
+	//}
+	//
+	//if err := scanner.Err(); err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//MetricsArray.GenerateGraphs()
+}
+
+// GenerateGraphsLists Generate graphs for run
+func (m *MetricsComparison) GenerateGraphsLists() {
+
+	page := components.NewPage()
+	page.PageTitle = "Go Program metrics"
+	page.Layout = "flex"
+	page.AddCharts(
+		m.GraphArray("Alloc is bytes of allocated heap object", "Alloc"),
+		m.GraphArray("TotalAlloc is cumulative bytes allocated for heap objects", "TotalAlloc"),
+		m.GraphArray("Sys is the total bytes of memory obtained from the OS", "Sys"),
+		m.GraphArray("Lookups is the number of pointer lookups performed by the runtime", "Lookups"),
+		//m.MallocsAndFreesGraph(),
+		m.GraphArray("HeapAlloc is bytes of allocated heap objects", "HeapAlloc"),
+		m.GraphArray("HeapSys is bytes of heap memory obtained from the OS", "HeapSys"),
+		m.GraphArray("HeapIdle is bytes in idle (unused) spans.", "HeapIdle"),
+		m.GraphArray("HeapInuse is bytes in in-use spans.", "HeapInuse"),
+		m.GraphArray("HeapReleased is bytes of physical memory returned to the OS.", "HeapReleased"),
+		m.GraphArray("HeapObjects is the number of allocated heap objects.", "HeapObjects"),
+		m.GraphArray("StackInuse is bytes in stack spans.", "StackSys"),
+		m.GraphArray("StackSys is bytes of stack memory obtained from the OS", "StackSys"),
+		m.GraphArray("MSpanInuse is bytes of allocated mspan structures.", "MSpanInuse"),
+		m.GraphArray("MSpanSys is bytes of memory obtained from the OS for mspan.", "MSpanSys"),
+		m.GraphArray("MCacheInuse is bytes of allocated mcache structures.", "MCacheInuse"),
+		m.GraphArray("MCacheSys is bytes of memory obtained from the OS for mcache structures.", "MCacheSys"),
+		m.GraphArray("GCSys is bytes of memory in garbage collection metadata.", "GCSys"),
+		m.GraphArray("OtherSys is bytes of memory in miscellaneous off-heap runtime allocations.", "OtherSys"),
+		m.GraphArray("NextGC is the target heap size of the next GC cycle.", "NextGC"),
+		m.GraphArray("LastGC is the time the last garbage collection finished, as nanoseconds since 1970 (the UNIX epoch).", "LastGC"),
+		m.GraphArray("PauseTotalNs is the cumulative nanoseconds in GC stop-the-world pauses since the program started.", "PauseTotalNs"),
+		m.GraphArray("PauseNs is a circular buffer of recent GC stop-the-world pause times in nanoseconds.", "PauseNs"),
+		m.GraphArray("NumGC is the number of completed GC cycles.", "NumGC"),
+		m.GraphArray("GCCPUFraction is the fraction of this program's available CPU time used by the GC since the program started.", "GCCPUFraction", "float"),
+	)
+
+	f, err := os.Create("metrics.html")
+	if err != nil {
+		panic(err)
+	}
+	page.Render(io.MultiWriter(f))
 }
 
 // GenerateGraphs Generate graphs for run
-func (m *MetricsAllSSingleRun) GenerateGraphs() {
+func (m *MetricsAllSingleRun) GenerateGraphs() {
 
 	page := components.NewPage()
 	page.PageTitle = "Go Program metrics"
